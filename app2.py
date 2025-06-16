@@ -14,9 +14,10 @@ def is_prime(n, k=5):
     """
     if n < 2:
         return False
-    for p in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]:
-        if n % p == 0:
-            return n == p
+    if n in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]:
+        return True
+    if n % 2 == 0 or n % 3 == 0 or n % 5 == 0 or n % 7 == 0:
+        return False
     s, d = 0, n - 1
     while d % 2 == 0:
         s, d = s + 1, d // 2
@@ -78,6 +79,8 @@ def rsa_encrypt(data, e, n):
     Encrypts a list of numbers using RSA.
     Fungsi untuk mengenkripsi daftar angka.
     """
+    e = int(e)
+    n = int(n)
     return [pow(int(num), e, n) for num in data]
 
 def rsa_decrypt(data, d, n):
@@ -85,6 +88,8 @@ def rsa_decrypt(data, d, n):
     Decrypts a list of numbers using RSA.
     Fungsi untuk mendekripsi daftar angka.
     """
+    d = int(d)
+    n = int(n)
     return [pow(int(num), d, n) for num in data]
 
 # ==============================================================================
@@ -97,9 +102,7 @@ def validate_numeric_csv(df):
     Fungsi untuk memvalidasi bahwa semua data dalam CSV adalah numerik (bilangan bulat).
     """
     for col in df.columns:
-        # Coba konversi ke numerik, error akan menjadi NaN
         series = pd.to_numeric(df[col], errors='coerce')
-        # Cek jika ada NaN (bukan angka) atau jika angka tersebut bukan integer
         if series.isnull().any() or not all(series.apply(lambda x: float(x).is_integer())):
             return False
     return True
@@ -112,7 +115,6 @@ def get_keys(p, q):
     n = p * q
     phi_n = (p - 1) * (q - 1)
     keys = []
-    # Kita batasi pencarian untuk efisiensi di aplikasi web
     limit = min(phi_n, 1000) 
     for e in range(2, limit):
         if gcd(e, phi_n) == 1:
@@ -126,28 +128,22 @@ def reset_state():
     Resets the session state to the beginning.
     Fungsi untuk mereset aplikasi kembali ke halaman awal.
     """
-    # Simpan file yang sudah di-upload jika ada
     uploaded_file = st.session_state.get('uploaded_file', None)
-    
-    # Hapus semua state kecuali file yang di-upload
     for key in list(st.session_state.keys()):
         if key != 'uploaded_file':
             del st.session_state[key]
     
-    # Jika file ada, proses ulang
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
         try:
-            # PERUBAHAN: Menambahkan sep=";"
             df = pd.read_csv(st.session_state.uploaded_file, sep=";")
             if validate_numeric_csv(df):
                 st.session_state.df_valid = True
                 st.session_state.df = df
             else:
                 st.session_state.df_valid = False
-        except Exception as e:
+        except Exception:
             st.session_state.df_valid = False
-
 
 # ==============================================================================
 # Tampilan dan Logika Aplikasi Streamlit
@@ -159,16 +155,12 @@ st.title("🔒 CrypterNann-RSA")
 st.write("Aplikasi untuk Enkripsi dan Dekripsi Kumpulan Data Numerik Menggunakan RSA")
 st.markdown("---")
 
-
-# Inisialisasi session state jika belum ada
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
 
-# Fungsi untuk mengubah halaman
 def set_page(page_name):
     st.session_state.page = page_name
 
-# --- Halaman Awal & Upload Data ---
 if st.session_state.page == 'home':
     col1, col2 = st.columns([2, 1])
 
@@ -180,7 +172,6 @@ if st.session_state.page == 'home':
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
             try:
-                # PERUBAHAN: Menambahkan sep=";"
                 df = pd.read_csv(uploaded_file, sep=";")
                 if validate_numeric_csv(df):
                     st.success("File valid! Silakan pilih tindakan di bawah ini.")
@@ -194,17 +185,14 @@ if st.session_state.page == 'home':
                 st.error(f"Gagal memproses file. Pastikan pemisah kolom adalah titik koma (;). Error: {e}")
                 st.session_state.df_valid = False
         
-        # Tombol aksi hanya muncul jika file valid
         if st.session_state.get('df_valid', False):
             action_col1, action_col2 = st.columns(2)
-            with action_col1:
-                if st.button("🔐 Enkripsi Data", use_container_width=True, type="primary"):
-                    set_page('encrypt_primes')
-                    st.rerun() # Memuat ulang script untuk pindah halaman
-            with action_col2:
-                if st.button("🔓 Dekripsi Data", use_container_width=True):
-                    set_page('decrypt_input')
-                    st.rerun()
+            if action_col1.button("🔐 Enkripsi Data", use_container_width=True, type="primary"):
+                set_page('encrypt_primes')
+                st.rerun()
+            if action_col2.button("🔓 Dekripsi Data", use_container_width=True):
+                set_page('decrypt_input')
+                st.rerun()
     
     with col2:
         with st.expander("Petunjuk Pemakaian", expanded=True):
@@ -213,6 +201,7 @@ if st.session_state.page == 'home':
             2.  **Pilih Aksi**: Klik tombol "Enkripsi" atau "Dekripsi".
             3.  **Untuk Enkripsi**:
                 - Masukkan dua bilangan prima (`p` dan `q`) atau gunakan tombol acak.
+                - Pastikan nilai `n = p * q` lebih besar dari nilai data terbesar Anda.
                 - Pilih salah satu kunci publik (`e`) dari tabel yang ditampilkan.
                 - Klik "Encrypt!" untuk melihat hasilnya.
             4.  **Untuk Dekripsi**:
@@ -229,42 +218,36 @@ if st.session_state.page == 'home':
             - Data terenkripsi menjadi: `(10^7) mod 143 = 59`, `(25^7) mod 143 = 60`, `(50^7) mod 143 = 5`.
             """)
 
-
-# --- Alur Enkripsi ---
 elif st.session_state.page == 'encrypt_primes':
     st.header("Langkah 1: Tentukan Bilangan Prima")
     st.info("Masukkan dua bilangan prima berbeda atau biarkan kami yang memilihkan untuk Anda.")
-
-    # FIX: Ganti nilai default dari 0 ke nilai yang valid (>= min_value)
-    p_val = st.session_state.get('p_random', 11) # Menggunakan 11 sebagai default awal
-    q_val = st.session_state.get('q_random', 13) # Menggunakan 13 sebagai default awal
+    
+    p_val = st.session_state.get('p_random', 11)
+    q_val = st.session_state.get('q_random', 13)
 
     with st.form(key="prime_form"):
         col1, col2 = st.columns(2)
-        with col1:
-            p_input = st.number_input("Masukkan bilangan prima (p)", min_value=2, step=1, format="%d", value=p_val)
-        with col2:
-            q_input = st.number_input("Masukkan bilangan prima (q)", min_value=2, step=1, format="%d", value=q_val)
+        p_input = col1.number_input("Masukkan bilangan prima (p)", min_value=2, step=1, format="%d", value=p_val)
+        q_input = col2.number_input("Masukkan bilangan prima (q)", min_value=2, step=1, format="%d", value=q_val)
         
         col_b1, col_b2 = st.columns([1,1])
         submitted = col_b1.form_submit_button("Lanjutkan")
         random_clicked = col_b2.form_submit_button("Gunakan Bilangan Prima Acak")
     
-        if submitted:
-            p = int(p_input)
-            q = int(q_input)
-            if p == q:
-                st.error("Bilangan p dan q tidak boleh sama.")
-            elif not is_prime(p) or not is_prime(q):
-                st.error("Salah satu atau kedua bilangan yang Anda masukkan bukan bilangan prima.")
-            else:
-                st.session_state.p = p
-                st.session_state.q = q
-                # Hapus nilai acak dari state jika ada
-                if 'p_random' in st.session_state: del st.session_state.p_random
-                if 'q_random' in st.session_state: del st.session_state.q_random
-                set_page('encrypt_keys')
-                st.rerun()
+    if submitted:
+        p = int(p_input)
+        q = int(q_input)
+        if p == q:
+            st.error("Bilangan p dan q tidak boleh sama.")
+        elif not is_prime(p) or not is_prime(q):
+            st.error("Salah satu atau kedua bilangan yang Anda masukkan bukan bilangan prima.")
+        else:
+            st.session_state.p = p
+            st.session_state.q = q
+            if 'p_random' in st.session_state: del st.session_state.p_random
+            if 'q_random' in st.session_state: del st.session_state.q_random
+            set_page('encrypt_keys')
+            st.rerun()
 
     if random_clicked:
         st.session_state.p_random = generate_prime(bits=10)
@@ -278,14 +261,20 @@ elif st.session_state.page == 'encrypt_primes':
         set_page('home')
         st.rerun()
 
-
 elif st.session_state.page == 'encrypt_keys':
-    p, q = st.session_state.p, st.session_state.q
+    p, q = int(st.session_state.p), int(st.session_state.q)
     n = p * q
     phi_n = (p - 1) * (q - 1)
     
     st.header("Langkah 2: Pilih Kunci Enkripsi")
     st.write(f"Parameter Anda: `p = {p}`, `q = {q}`, `n = {n}`, `phi(n) = {phi_n}`")
+    
+    # PERBAIKAN: Cek apakah nilai n cukup besar
+    max_data_value = 0
+    if 'df' in st.session_state:
+        max_data_value = st.session_state.df.max().max()
+        if n <= max_data_value:
+            st.error(f"Peringatan: Nilai n ({n}) harus lebih besar dari nilai data terbesar Anda ({max_data_value}) agar RSA bekerja dengan benar. Silakan kembali dan pilih p atau q yang lebih besar.")
 
     with st.spinner("Menghasilkan daftar kunci yang valid..."):
         keys_df = get_keys(p, q)
@@ -293,7 +282,6 @@ elif st.session_state.page == 'encrypt_keys':
 
     st.write("Berikut adalah semua kemungkinan kunci publik (e) dan privat (d) yang bisa digunakan.")
     
-    # Pagination
     page_size = 25
     total_pages = math.ceil(len(keys_df) / page_size) if len(keys_df) > 0 else 1
     page_num = st.number_input('Halaman', min_value=1, max_value=total_pages, value=1, step=1)
@@ -313,7 +301,7 @@ elif st.session_state.page == 'encrypt_keys':
         st.info(f"Anda memilih kunci publik `e = {st.session_state.selected_e}`.")
 
         col1, col2 = st.columns(2)
-        if col1.button("🔐 Encrypt!", type="primary"):
+        if col1.button("🔐 Encrypt!", type="primary", disabled=(n <= max_data_value)):
             set_page('encrypt_result')
             st.rerun()
     else:
@@ -322,7 +310,6 @@ elif st.session_state.page == 'encrypt_keys':
     if st.button("Batalkan & Pilih Ulang Bilangan Prima"):
         set_page('encrypt_primes')
         st.rerun()
-
 
 elif st.session_state.page == 'encrypt_result':
     st.header("Hasil Enkripsi")
@@ -340,15 +327,23 @@ elif st.session_state.page == 'encrypt_result':
     st.write("Data Terenkripsi:")
     st.dataframe(encrypted_df)
     
-    st.info(f"**Kunci Publik (e, n):** ({e}, {n})")
-    st.warning(f"**Kunci Privat (d, n):** ({d}, {n}) - Simpan kunci ini untuk proses dekripsi!")
+    # PERBAIKAN: Menambahkan tombol download dan mengatur separator
+    csv_data = encrypted_df.to_csv(index=False, sep=';').encode('utf-8')
+    st.download_button(
+        label="📥 Download Data Terenkripsi (CSV)",
+        data=csv_data,
+        file_name='Hasil_Enkripsi.csv',
+        mime='text/csv',
+    )
+    
+    st.info(f"**Kunci Publik (e, n):** ({int(e)}, {int(n)})")
+    st.warning(f"**Kunci Privat (d, n):** ({int(d)}, {int(n)}) - Simpan kunci ini untuk proses dekripsi!")
     
     if st.button("Kembali ke Halaman Awal"):
         reset_state()
         set_page('home')
         st.rerun()
 
-# --- Alur Dekripsi ---
 elif st.session_state.page == 'decrypt_input':
     st.header("Langkah 1: Masukkan Kunci Dekripsi")
     st.info("Masukkan nilai n (hasil p * q) dan kunci privat (d) Anda.")
@@ -379,7 +374,6 @@ elif st.session_state.page == 'decrypt_input':
         set_page('home')
         st.rerun()
         
-
 elif st.session_state.page == 'decrypt_result':
     st.header("Hasil Dekripsi")
     df = st.session_state.df
