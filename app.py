@@ -138,6 +138,7 @@ def reset_state():
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
         try:
+            # PERUBAHAN: Menambahkan sep=";"
             df = pd.read_csv(st.session_state.uploaded_file, sep=";")
             if validate_numeric_csv(df):
                 st.session_state.df_valid = True
@@ -174,11 +175,12 @@ if st.session_state.page == 'home':
     with col1:
         st.header("Mulai di Sini")
         st.write("Upload file CSV Anda yang berisi data numerik. Pastikan semua nilai adalah bilangan bulat.")
-        uploaded_file = st.file_uploader("Pilih file CSV", type="csv", key="file_uploader_key")
+        uploaded_file = st.file_uploader("Pilih file CSV (separator ;)", type="csv", key="file_uploader_key")
 
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
             try:
+                # PERUBAHAN: Menambahkan sep=";"
                 df = pd.read_csv(uploaded_file, sep=";")
                 if validate_numeric_csv(df):
                     st.success("File valid! Silakan pilih tindakan di bawah ini.")
@@ -189,7 +191,7 @@ if st.session_state.page == 'home':
                     st.error("File tidak valid. Pastikan semua data (selain header) adalah bilangan bulat.")
                     st.session_state.df_valid = False
             except Exception as e:
-                st.error(f"Gagal memproses file: {e}")
+                st.error(f"Gagal memproses file. Pastikan pemisah kolom adalah titik koma (;). Error: {e}")
                 st.session_state.df_valid = False
         
         # Tombol aksi hanya muncul jika file valid
@@ -207,7 +209,7 @@ if st.session_state.page == 'home':
     with col2:
         with st.expander("Petunjuk Pemakaian", expanded=True):
             st.markdown("""
-            1.  **Upload File**: Unggah file `.csv` yang berisi data numerik.
+            1.  **Upload File**: Unggah file `.csv` yang menggunakan titik koma (;) sebagai pemisah.
             2.  **Pilih Aksi**: Klik tombol "Enkripsi" atau "Dekripsi".
             3.  **Untuk Enkripsi**:
                 - Masukkan dua bilangan prima (`p` dan `q`) atau gunakan tombol acak.
@@ -221,7 +223,7 @@ if st.session_state.page == 'home':
         with st.expander("Contoh Pemakaian"):
             st.info("Contoh alur enkripsi:")
             st.markdown("""
-            - Anda upload data: `10, 25, 50`.
+            - Anda upload data: `10;25;50`.
             - Anda memilih `p=11` dan `q=13`. Maka `n=143` dan `phi(n)=120`.
             - Tabel kunci akan muncul. Anda pilih indeks `e=7` dan `d=103`.
             - Data terenkripsi menjadi: `(10^7) mod 143 = 59`, `(25^7) mod 143 = 60`, `(50^7) mod 143 = 5`.
@@ -233,34 +235,42 @@ elif st.session_state.page == 'encrypt_primes':
     st.header("Langkah 1: Tentukan Bilangan Prima")
     st.info("Masukkan dua bilangan prima berbeda atau biarkan kami yang memilihkan untuk Anda.")
 
+    # PERUBAHAN: Alur untuk menampilkan angka acak sebelum lanjut
+    p_val = st.session_state.get('p_random', 0)
+    q_val = st.session_state.get('q_random', 0)
+
     form = st.form(key="prime_form")
     col1, col2 = form.columns(2)
     with col1:
-        p = form.number_input("Masukkan bilangan prima (p)", min_value=2, step=1, format="%d")
+        p_input = form.number_input("Masukkan bilangan prima (p)", min_value=2, step=1, format="%d", value=p_val)
     with col2:
-        q = form.number_input("Masukkan bilangan prima (q)", min_value=2, step=1, format="%d")
+        q_input = form.number_input("Masukkan bilangan prima (q)", min_value=2, step=1, format="%d", value=q_val)
     
     col_b1, col_b2 = form.columns([1,1])
     submitted = col_b1.form_submit_button("Lanjutkan")
     random_clicked = col_b2.form_submit_button("Gunakan Bilangan Prima Acak")
     
     if submitted:
+        p = int(p_input)
+        q = int(q_input)
         if p == q:
-            st.error("Bilangan p dan q tidak boleh sama.")
+            form.error("Bilangan p dan q tidak boleh sama.")
         elif not is_prime(p) or not is_prime(q):
-            st.error("Salah satu atau kedua bilangan yang Anda masukkan bukan bilangan prima.")
+            form.error("Salah satu atau kedua bilangan yang Anda masukkan bukan bilangan prima.")
         else:
             st.session_state.p = p
             st.session_state.q = q
+            # Hapus nilai acak dari state jika ada
+            if 'p_random' in st.session_state: del st.session_state.p_random
+            if 'q_random' in st.session_state: del st.session_state.q_random
             set_page('encrypt_keys')
             st.rerun()
 
     if random_clicked:
-        st.session_state.p = generate_prime(bits=10)
-        st.session_state.q = generate_prime(bits=10)
-        while st.session_state.p == st.session_state.q:
-            st.session_state.q = generate_prime(bits=10)
-        set_page('encrypt_keys')
+        st.session_state.p_random = generate_prime(bits=10)
+        st.session_state.q_random = generate_prime(bits=10)
+        while st.session_state.p_random == st.session_state.q_random:
+            st.session_state.q_random = generate_prime(bits=10)
         st.rerun()
     
     if st.button("Kembali ke Halaman Awal"):
@@ -285,27 +295,31 @@ elif st.session_state.page == 'encrypt_keys':
     
     # Pagination
     page_size = 25
-    total_pages = math.ceil(len(keys_df) / page_size)
+    total_pages = math.ceil(len(keys_df) / page_size) if len(keys_df) > 0 else 1
     page_num = st.number_input('Halaman', min_value=1, max_value=total_pages, value=1, step=1)
     
     start_idx = (page_num - 1) * page_size
     end_idx = start_idx + page_size
     st.table(keys_df.iloc[start_idx:end_idx])
 
-    st.write("Pilih salah satu kunci untuk mengenkripsi data Anda dengan memasukkan nomor indeksnya.")
-    selected_index = st.number_input("Pilih Indeks Kunci", min_value=0, max_value=len(keys_df)-1, step=1)
-    
-    st.session_state.selected_e = keys_df.iloc[selected_index]['e']
-    st.session_state.selected_d = keys_df.iloc[selected_index]['d']
-    st.session_state.n = n
+    if not keys_df.empty:
+        st.write("Pilih salah satu kunci untuk mengenkripsi data Anda dengan memasukkan nomor indeksnya.")
+        selected_index = st.number_input("Pilih Indeks Kunci", min_value=0, max_value=len(keys_df)-1, step=1)
+        
+        st.session_state.selected_e = keys_df.iloc[selected_index]['e']
+        st.session_state.selected_d = keys_df.iloc[selected_index]['d']
+        st.session_state.n = n
 
-    st.info(f"Anda memilih kunci publik `e = {st.session_state.selected_e}`.")
+        st.info(f"Anda memilih kunci publik `e = {st.session_state.selected_e}`.")
 
-    col1, col2 = st.columns(2)
-    if col1.button("🔐 Encrypt!", type="primary"):
-        set_page('encrypt_result')
-        st.rerun()
-    if col2.button("Batalkan & Pilih Ulang Bilangan Prima"):
+        col1, col2 = st.columns(2)
+        if col1.button("🔐 Encrypt!", type="primary"):
+            set_page('encrypt_result')
+            st.rerun()
+    else:
+        st.warning("Tidak ada kunci yang valid yang bisa dihasilkan dari p dan q ini. Silakan kembali dan pilih bilangan prima lain.")
+
+    if st.button("Batalkan & Pilih Ulang Bilangan Prima"):
         set_page('encrypt_primes')
         st.rerun()
 
@@ -349,8 +363,8 @@ elif st.session_state.page == 'decrypt_input':
 
         if decrypt_button:
             if n_decrypt > 0 and d_decrypt > 0:
-                st.session_state.n_decrypt = n_decrypt
-                st.session_state.d_decrypt = d_decrypt
+                st.session_state.n_decrypt = int(n_decrypt)
+                st.session_state.d_decrypt = int(d_decrypt)
                 set_page('decrypt_result')
                 st.rerun()
             else:
