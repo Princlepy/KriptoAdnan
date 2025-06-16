@@ -138,7 +138,7 @@ def reset_state():
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
         try:
-            df = pd.read_csv(st.session_state.uploaded_file)
+            df = pd.read_csv(st.session_state.uploaded_file, sep=";")
             if validate_numeric_csv(df):
                 st.session_state.df_valid = True
                 st.session_state.df = df
@@ -179,7 +179,7 @@ if st.session_state.page == 'home':
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
             try:
-                df = pd.read_csv(uploaded_file)
+                df = pd.read_csv(uploaded_file, sep=";")
                 if validate_numeric_csv(df):
                     st.success("File valid! Silakan pilih tindakan di bawah ini.")
                     st.session_state.df_valid = True
