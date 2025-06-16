@@ -269,12 +269,13 @@ elif st.session_state.page == 'encrypt_keys':
     st.header("Langkah 2: Pilih Kunci Enkripsi")
     st.write(f"Parameter Anda: `p = {p}`, `q = {q}`, `n = {n}`, `phi(n) = {phi_n}`")
     
-    # PERBAIKAN: Cek apakah nilai n cukup besar
     max_data_value = 0
+    disable_encrypt_button = False
     if 'df' in st.session_state:
-        max_data_value = st.session_state.df.max().max()
+        max_data_value = int(st.session_state.df.max().max())
         if n <= max_data_value:
             st.error(f"Peringatan: Nilai n ({n}) harus lebih besar dari nilai data terbesar Anda ({max_data_value}) agar RSA bekerja dengan benar. Silakan kembali dan pilih p atau q yang lebih besar.")
+            disable_encrypt_button = True
 
     with st.spinner("Menghasilkan daftar kunci yang valid..."):
         keys_df = get_keys(p, q)
@@ -301,7 +302,8 @@ elif st.session_state.page == 'encrypt_keys':
         st.info(f"Anda memilih kunci publik `e = {st.session_state.selected_e}`.")
 
         col1, col2 = st.columns(2)
-        if col1.button("🔐 Encrypt!", type="primary", disabled=(n <= max_data_value)):
+        # PERBAIKAN: Menggunakan variabel boolean yang sudah pasti tipenya
+        if col1.button("🔐 Encrypt!", type="primary", disabled=disable_encrypt_button):
             set_page('encrypt_result')
             st.rerun()
     else:
@@ -327,7 +329,6 @@ elif st.session_state.page == 'encrypt_result':
     st.write("Data Terenkripsi:")
     st.dataframe(encrypted_df)
     
-    # PERBAIKAN: Menambahkan tombol download dan mengatur separator
     csv_data = encrypted_df.to_csv(index=False, sep=';').encode('utf-8')
     st.download_button(
         label="📥 Download Data Terenkripsi (CSV)",
