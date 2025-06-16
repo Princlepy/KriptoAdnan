@@ -235,36 +235,36 @@ elif st.session_state.page == 'encrypt_primes':
     st.header("Langkah 1: Tentukan Bilangan Prima")
     st.info("Masukkan dua bilangan prima berbeda atau biarkan kami yang memilihkan untuk Anda.")
 
-    # PERUBAHAN: Alur untuk menampilkan angka acak sebelum lanjut
-    p_val = st.session_state.get('p_random', 0)
-    q_val = st.session_state.get('q_random', 0)
+    # FIX: Ganti nilai default dari 0 ke nilai yang valid (>= min_value)
+    p_val = st.session_state.get('p_random', 11) # Menggunakan 11 sebagai default awal
+    q_val = st.session_state.get('q_random', 13) # Menggunakan 13 sebagai default awal
 
-    form = st.form(key="prime_form")
-    col1, col2 = form.columns(2)
-    with col1:
-        p_input = form.number_input("Masukkan bilangan prima (p)", min_value=2, step=1, format="%d", value=p_val)
-    with col2:
-        q_input = form.number_input("Masukkan bilangan prima (q)", min_value=2, step=1, format="%d", value=q_val)
+    with st.form(key="prime_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            p_input = st.number_input("Masukkan bilangan prima (p)", min_value=2, step=1, format="%d", value=p_val)
+        with col2:
+            q_input = st.number_input("Masukkan bilangan prima (q)", min_value=2, step=1, format="%d", value=q_val)
+        
+        col_b1, col_b2 = st.columns([1,1])
+        submitted = col_b1.form_submit_button("Lanjutkan")
+        random_clicked = col_b2.form_submit_button("Gunakan Bilangan Prima Acak")
     
-    col_b1, col_b2 = form.columns([1,1])
-    submitted = col_b1.form_submit_button("Lanjutkan")
-    random_clicked = col_b2.form_submit_button("Gunakan Bilangan Prima Acak")
-    
-    if submitted:
-        p = int(p_input)
-        q = int(q_input)
-        if p == q:
-            form.error("Bilangan p dan q tidak boleh sama.")
-        elif not is_prime(p) or not is_prime(q):
-            form.error("Salah satu atau kedua bilangan yang Anda masukkan bukan bilangan prima.")
-        else:
-            st.session_state.p = p
-            st.session_state.q = q
-            # Hapus nilai acak dari state jika ada
-            if 'p_random' in st.session_state: del st.session_state.p_random
-            if 'q_random' in st.session_state: del st.session_state.q_random
-            set_page('encrypt_keys')
-            st.rerun()
+        if submitted:
+            p = int(p_input)
+            q = int(q_input)
+            if p == q:
+                st.error("Bilangan p dan q tidak boleh sama.")
+            elif not is_prime(p) or not is_prime(q):
+                st.error("Salah satu atau kedua bilangan yang Anda masukkan bukan bilangan prima.")
+            else:
+                st.session_state.p = p
+                st.session_state.q = q
+                # Hapus nilai acak dari state jika ada
+                if 'p_random' in st.session_state: del st.session_state.p_random
+                if 'q_random' in st.session_state: del st.session_state.q_random
+                set_page('encrypt_keys')
+                st.rerun()
 
     if random_clicked:
         st.session_state.p_random = generate_prime(bits=10)
