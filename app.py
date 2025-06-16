@@ -327,9 +327,10 @@ elif st.session_state.page == 'encrypt_keys':
 elif st.session_state.page == 'encrypt_result':
     st.header("Hasil Enkripsi")
     df = st.session_state.df
-    e = st.session_state.selected_e
-    d = st.session_state.selected_d
-    n = st.session_state.n
+    # FIX: Pastikan semua variabel adalah integer sebelum digunakan
+    e = int(st.session_state.selected_e)
+    d = int(st.session_state.selected_d)
+    n = int(st.session_state.n)
     
     encrypted_df = df.copy()
     with st.spinner("Sedang mengenkripsi data..."):
